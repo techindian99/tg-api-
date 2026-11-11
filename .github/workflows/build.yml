@@ -1,0 +1,31 @@
+name: Build and Push API Image
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download ZIP from Hugging Face
+        run: |
+          wget -q https://huggingface.co/datasets/Rajunknown19/tg-data/resolve/main/Telegram-full-database-json.zip -O data.zip
+          unzip -q data.zip
+          find . -name "*.json" -exec mv {} Telegram_70M.json \;
+          rm data.zip
+          
+      - name: Install Python & Build DB
+        run: |
+          pip install ijson
+          python build_db.py
+          rm Telegram_70M.json
+          
+      - name: Build and Push Docker Image
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker build -t ghcr.io/${{ github.repository }}/tg-api:latest .
+          docker push ghcr.io/${{ github.repository }}/tg-api:latest
+          
